@@ -1,4 +1,5 @@
 # DbCache
+Tools to efficiently interact with a database by caching queries and ids
 
 [![Build Status](https://travis-ci.org/galenlynch/DbCache.jl.svg?branch=master)](https://travis-ci.org/galenlynch/DbCache.jl)
 

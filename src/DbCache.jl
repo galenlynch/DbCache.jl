@@ -1,5 +1,32 @@
+__precompile__()
 module DbCache
+using ODBC
+
+export
+    # types
+    Conn,
+    Stmt,
+    DBCache,
+    IDType,
+    IDDimensionType,
+
+    # macros
+    idinstance,
+    iddimension,
+
+    # functions
+    execute!,
+    prepare,
+    query,
+    transaction,
+    id_check,
+    prepare,
+    load!,
+    id!,
+    stmt
 
 # package code goes here
+include("dblayer.jl")
+include("dbcache.jl")
 
 end # module
