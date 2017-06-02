@@ -23,11 +23,10 @@ Defines a type, typename, with a single value field whose type is either a singl
 """
 macro idinstance(
     typename::Symbol,
-    parenttype::Type = IDType,
-    valuetype::Type = String,
-    valuetypes::Vararg{Type}
+    parenttype::Symbol = IDType,
+    valuetypes::Vararg{Symbol} = :String
 )
-    valtype =  isempty(valuetypes) ? valuetype : Tuple{valuetype, valuetypes...}
+    valtype = length(valuetypes) == 1 ? valuetypes[1] : Tuple{valuetypes...}
     typedef = quote
         type $typename <: $parenttype
             value::$valtype
@@ -37,7 +36,7 @@ macro idinstance(
 end
 
 macro iddimension(typename::Symbol, tablename_in::Symbol, idname_in::Symbol, dimname_in::Symbol)
-    typedef = @idinstance typename IDDimensionType
+    typedef = @macroexpand @idinstance typename IDDimensionType
     defs = quote
         $typedef
         tablename(::Type{$typename}) = $tablename_in

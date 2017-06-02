@@ -11,8 +11,8 @@ export
     IDDimensionType,
 
     # macros
-    idinstance,
-    iddimension,
+    @idinstance,
+    @iddimension,
 
     # functions
     execute!,
