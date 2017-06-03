@@ -26,10 +26,10 @@ macro idinstance(
     parenttype::Symbol = IDType,
     valuetypes::Vararg{Symbol} = :String
 )
-    valtype = length(valuetypes) == 1 ? valuetypes[1] : Tuple{valuetypes...}
+    valuetype = length(valuetypes) == 1 ? valuetypes[1] : Tuple{valuetypes...}
     typedef = quote
         type $typename <: $parenttype
-            value::$valtype
+            value::$valuetype
         end
     end
     return esc(typedef)
@@ -55,13 +55,27 @@ function prepare{T<:IDDimensionType}(db::Conn, ::Type{T}, sym::Symbol)
     thistable = tablename(T)
     thisdim = dimname(T)
     if sym == :select
-        stmt = prepare(db, "SELECT $thisid FROM $thistable WHERE $thisdim = ?;")
+        prepared_stmt = prepare(db, "SELECT $thisid FROM $thistable WHERE $thisdim = ?;")
     elseif sym == :insert
-        stmt = prepare(db, "INSERT INTO $thistable ($thisdim) VALUES (?) RETURNING $thisid;")
+        prepared_stmt = prepare(db, "INSERT INTO $thistable ($thisdim) VALUES (?) RETURNING $thisid;")
     else
         prepare_error(sym, T)
     end
-    return stmt
+    return prepared_stmt
+end
+
+idkey{T<:IDType}(s::T) = "$T/$(s.value)"
+idkey{T<:IDType}(::Type{T}, querytype::Symbol) = "$T/$querytype"
+
+function stmt{T<:IDType}(c::DBCache, ::Type{T}, querytype::Symbol)
+    key = idkey(T, querytype)
+    if haskey(c.stmt_cache, key)
+        prepared_stmt = c.stmt_cache[key]
+    else
+        prepared_stmt = prepare(c.db, T, querytype)
+        c.stmt_cache[key] = prepared_stmt
+    end
+    return prepared_stmt
 end
 
 function _load!{T<:IDType}(c::DBCache, s::T, id_stmt::Stmt = stmt(c, T, :insert))
@@ -83,9 +97,6 @@ function load!{T<:IDType, N}(c::DBCache, S::Array{T, N}, id_stmt::Stmt = stmt(c,
     return outs
 end
 
-idkey{T<:IDType}(s::T) = "$T/$(s.value)"
-idkey{T<:IDType}(::Type{T}, querytype::Symbol) = "$T/$querytype"
-
 "Get ID and cache it"
 function id!{T<:IDType}(c::DBCache, s::T)
     key = idkey(s)
@@ -102,14 +113,3 @@ function id!{T<:IDType}(c::DBCache, s::T)
     return id_val
 end
 id!{T<:IDType}(c::DBCache, ins::Array{T}) = [id!(c, s) for s in ins]
-
-function stmt{T<:IDType}(c::DBCache, ::Type{T}, querytype::Symbol)
-    key = idkey(T, querytype)
-    if haskey(c.stmt_cache, key)
-        stmt = c.stmt_cache[key]
-    else
-        stmt = prepare(c.db, T, querytype)
-        c.stmt_cache[key] = stmt
-    end
-    return stmt
-end

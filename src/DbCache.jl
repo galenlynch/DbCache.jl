@@ -20,7 +20,6 @@ export
     query,
     transaction,
     id_check,
-    prepare,
     load!,
     id!,
     stmt
