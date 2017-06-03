@@ -36,9 +36,8 @@ macro idinstance(
 end
 
 macro iddimension(typename::Symbol, tablename_in::Symbol, idname_in::Symbol, dimname_in::Symbol)
-    typedef = @macroexpand @idinstance typename IDDimensionType
     defs = quote
-        $typedef
+        @idinstance $typename IDDimensionType
         tablename(::Type{$typename}) = $tablename_in
         idname(::Type{$typename}) = $idname_in
         dimname(::Type{$typename}) = $dimname_in
