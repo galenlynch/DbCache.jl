@@ -26,27 +26,43 @@ macro idinstance(
     parenttype::Symbol = IDType,
     valuetypes::Vararg{Symbol} = :String
 )
-    valuetype = length(valuetypes) == 1 ? valuetypes[1] : Tuple{valuetypes...}
+    value_is_tuple = length(valuetypes) > 1
+    valuetype = value_is_tuple ? :(Tuple{$(valuetypes...)}) : valuetypes[1]
     typedef = quote
-        type $typename <: $parenttype
+        struct $typename <: $parenttype
             value::$valuetype
+        end
+    end
+    if value_is_tuple
+        typedef = quote
+            $typedef
+            $typename(args...) = $typename(args)
         end
     end
     return esc(typedef)
 end
 
+function tablename end
+function idname end
+function dimname end
+
 macro iddimension(typename::Symbol, tablename_in::Symbol, idname_in::Symbol, dimname_in::Symbol)
+    tblstr = string(tablename_in)
+    idstr = string(idname_in)
+    dimstr = string(dimname_in)
     defs = quote
         @idinstance $typename IDDimensionType
-        tablename(::Type{$typename}) = $tablename_in
-        idname(::Type{$typename}) = $idname_in
-        dimname(::Type{$typename}) = $dimname_in
+        tablename(::Type{$typename}) = $tblstr
+        idname(::Type{$typename}) = $idstr
+        dimname(::Type{$typename}) = $dimstr
     end
     return esc(defs)
 end
 
-insert_vals{T<:IDType}(id!::T) = [id!.value...]
-select_vals{T<:IDType}(id!::T) = [id!.value...]
+insert_vals{T<:IDType}(id::T) = expand_vals(id.value)
+select_vals{T<:IDType}(id::T) = expand_vals(id.value)
+expand_vals(v::String) = (v,)
+expand_vals(v::Tuple) = v
 
 prepare_error{T}(sym::Symbol, ::Type{T}) = error("No implementation of ", sym, " query for type ", T)
 
@@ -79,6 +95,9 @@ function stmt{T<:IDType}(c::DBCache, ::Type{T}, querytype::Symbol)
 end
 
 function _load!{T<:IDType}(c::DBCache, s::T, id_stmt::Stmt = stmt(c, T, :insert))
+    println("Inserting...")
+    println("id_stmt is ", id_stmt)
+    println("insert_vals is ", insert_vals(s))
     id_val = id_check(query(id_stmt, insert_vals(s)))
     id_val > 0 || error("Could not load ", T, " with value ", s.value)
     return id_val
@@ -104,7 +123,10 @@ function id!{T<:IDType}(c::DBCache, s::T)
         id_val = c.id_cache[key]
     else
         id_stmt = stmt(c, T, :select)
+        println("id_stmt is ", id_stmt)
+        println("select_vals are ", select_vals(s))
         id_val = id_check(query(id_stmt, select_vals(s)))
+        println("Could not find id")
         if id_val <= 0
             id_val = load!(c, s)
         end

@@ -22,7 +22,9 @@ export
     id_check,
     load!,
     id!,
-    stmt
+    stmt,
+    select_vals,
+    insert_vals
 
 # package code goes here
 include("dblayer.jl")
