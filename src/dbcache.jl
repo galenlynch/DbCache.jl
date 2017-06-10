@@ -8,15 +8,15 @@ function id_check(df::DataFrame)
     return convert(Int, res)
 end
 
-type DBCache
+@compat struct DBCache
     db::Conn
     id_cache::Dict{String, Int}
     stmt_cache::Dict{String, Stmt}
 end
 DBCache(db::Conn) = DBCache(db, Dict{String, Int}(), Dict{String, Stmt}())
 
-abstract type IDType end
-abstract type IDDimensionType <: IDType end
+@compat abstract type IDType end
+@compat abstract type IDDimensionType <: IDType end
 
 """macro idinstance(typename, [parenttype = IDType], [valuetype = String], [valuetypes...])
 Defines a type, typename, with a single value field whose type is either a single value or a tuple of values
@@ -29,7 +29,7 @@ macro idinstance(
     value_is_tuple = length(valuetypes) > 1
     valuetype = value_is_tuple ? :(Tuple{$(valuetypes...)}) : valuetypes[1]
     typedef = quote
-        struct $typename <: $parenttype
+        @compat struct $typename <: $parenttype
             value::$valuetype
         end
     end

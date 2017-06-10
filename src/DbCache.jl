@@ -1,6 +1,6 @@
 __precompile__()
 module DbCache
-using ODBC
+using ODBC, Compat
 
 export
     # types
