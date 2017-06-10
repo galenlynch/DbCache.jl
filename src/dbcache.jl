@@ -8,7 +8,7 @@ function id_check(df::DataFrame)
     return convert(Int, res)
 end
 
-@compat struct DBCache
+immutable DBCache
     db::Conn
     id_cache::Dict{String, Int}
     stmt_cache::Dict{String, Stmt}
@@ -29,7 +29,7 @@ macro idinstance(
     value_is_tuple = length(valuetypes) > 1
     valuetype = value_is_tuple ? :(Tuple{$(valuetypes...)}) : valuetypes[1]
     typedef = quote
-        @compat struct $typename <: $parenttype
+        immutable $typename <: $parenttype
             value::$valuetype
         end
     end
