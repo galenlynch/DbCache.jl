@@ -95,9 +95,6 @@ function stmt{T<:IDType}(c::DBCache, ::Type{T}, querytype::Symbol)
 end
 
 function _load!{T<:IDType}(c::DBCache, s::T, id_stmt::Stmt = stmt(c, T, :insert))
-    println("Inserting...")
-    println("id_stmt is ", id_stmt)
-    println("insert_vals is ", insert_vals(s))
     id_val = id_check(query(id_stmt, insert_vals(s)))
     id_val > 0 || error("Could not load ", T, " with value ", s.value)
     return id_val
@@ -123,11 +120,9 @@ function id!{T<:IDType}(c::DBCache, s::T)
         id_val = c.id_cache[key]
     else
         id_stmt = stmt(c, T, :select)
-        println("id_stmt is ", id_stmt)
-        println("select_vals are ", select_vals(s))
         id_val = id_check(query(id_stmt, select_vals(s)))
-        println("Could not find id")
         if id_val <= 0
+            println("SELECT FAILED, id_stmt was ", id_stmt, " and vals were ", select_vals(s))
             id_val = load!(c, s)
         end
         c.id_cache[key] = id_val
