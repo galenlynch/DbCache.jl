@@ -80,7 +80,7 @@ function prepare{T<:IDDimensionType}(db::Conn, ::Type{T}, sym::Symbol)
     return prepared_stmt
 end
 
-idkey{T<:IDType}(s::T) = "$T/$(s.value)"
+idkey{T<:IDType}(s::T) = "$T/$(select_vals(s))"
 idkey{T<:IDType}(::Type{T}, querytype::Symbol) = "$T/$querytype"
 
 function stmt{T<:IDType}(c::DBCache, ::Type{T}, querytype::Symbol)
@@ -122,7 +122,6 @@ function id!{T<:IDType}(c::DBCache, s::T)
         id_stmt = stmt(c, T, :select)
         id_val = id_check(query(id_stmt, select_vals(s)))
         if id_val <= 0
-            println("SELECT FAILED, id_stmt was ", id_stmt, " and vals were ", select_vals(s))
             id_val = load!(c, s)
         end
         c.id_cache[key] = id_val
