@@ -16,16 +16,18 @@ export
 
     # functions
     execute!,
+    stmt_dict,
     prepare,
     query,
     transaction,
     id_check,
     load!,
     id!,
+    get_id,
+    id_in_cache,
     stmt,
     select_vals,
     insert_vals,
-    prepare_error
 
 # package code goes here
 include("dblayer.jl")
