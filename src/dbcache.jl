@@ -24,7 +24,7 @@ Defines a type, typename, with a single value field whose type is either a singl
 macro idinstance(
     typename::Symbol,
     parenttype::Symbol = IDType,
-    valuetypes::Vararg{Symbol} = :String
+    valuetypes::Vararg = :String
 )
     value_is_tuple = length(valuetypes) > 1
     valuetype = value_is_tuple ? :(Tuple{$(valuetypes...)}) : valuetypes[1]
@@ -102,17 +102,20 @@ function stmt{T<:IDType}(c::DBCache, ::Type{T}, querytype::Symbol)
     return prepared_stmt
 end
 
-function _load!{T<:IDType}(c::DBCache, s::T, id_stmt::Stmt = stmt(c, T, :insert))
+"Load ID type and don't return ID"
+function load_no_id!(c::DBCache, s::T, id_stmt::Stmt = stmt(c, T, :insert)) where T<:IDType
+    execute!(id_stmt, insert_vals(s))
+end
+
+"Load ID and don't cache it"
+function load!(c::DBCache, s::T, id_stmt::Stmt = stmt(c, T, :insert)) where T<:IDType
     id_val = id_check(query(id_stmt, insert_vals(s)))
     id_val > 0 || error("Could not load ", T, " with value ", s.value)
     return id_val
 end
-
-"Load ID and don't cache it"
-function load!{T<:IDType}(c::DBCache, s::T, id_stmt::Stmt = stmt(c, T, :insert))
-    return _load!(c, s, id_stmt)
-end
-function load!{T<:IDType, N}(c::DBCache, S::Array{T, N}, id_stmt::Stmt = stmt(c, T, :insert))
+function load!(
+    c::DBCache, S::Array{T, N}, id_stmt::Stmt = stmt(c, T, :insert)
+) where {T<:IDType, N}
     ns = length(S)
     outs = Array{Int, N}(size(S))
     for idx in eachindex(S)

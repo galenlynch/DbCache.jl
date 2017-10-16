@@ -22,6 +22,7 @@ export
     transaction,
     id_check,
     load!,
+    load_no_id!,
     id!,
     get_id,
     id_in_cache,
