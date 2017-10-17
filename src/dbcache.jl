@@ -61,8 +61,9 @@ end
 
 insert_vals{T<:IDType}(id::T) = expand_vals(id.value)
 select_vals{T<:IDType}(id::T) = expand_vals(id.value)
-expand_vals(v::String) = (v,)
 expand_vals(v::Tuple) = v
+expand_vals(v::Array) = v
+expand_vals(v::Any) = (v,)
 
 stmt_dict(::Type{T}) where T<: IDType = Dict{Symbol, String}()
 
