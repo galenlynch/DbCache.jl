@@ -108,11 +108,16 @@ function load_no_id!(c::DBCache, s::T, id_stmt::Stmt = stmt(c, T, :insert)) wher
     execute!(id_stmt, insert_vals(s))
 end
 
-"Load ID and don't cache it"
-function load!(c::DBCache, s::T, id_stmt::Stmt = stmt(c, T, :insert)) where T<:IDType
+"Separate function to actually load values, in case any clean up work needs to be done"
+function _load!(c::DBCache, s::T, id_stmt::Stmt = stmt(c, T, :insert)) where T<:IDType
     id_val = id_check(query(id_stmt, insert_vals(s)))
     id_val > 0 || error("Could not load ", T, " with value ", s.value)
     return id_val
+end
+
+"Load ID and don't cache it"
+function load!(c::DBCache, s::T, id_stmt::Stmt = stmt(c, T, :insert)) where T<:IDType
+    return _load!(c, s, id_stmt)
 end
 function load!(
     c::DBCache, S::Array{T, N}, id_stmt::Stmt = stmt(c, T, :insert)
