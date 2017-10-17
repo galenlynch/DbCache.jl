@@ -5,12 +5,14 @@ prepare(args...) = ODBC.prepare(args...)
 query(args...) = ODBC.query(args...)
 
 function transaction(f::Function, db::Conn)
-    try
+    returnval = try
         execute!(db, "BEGIN;")
-        f()
+        returnval = f()
         execute!(db, "COMMIT;")
+        returnval
     catch
         execute!(db, "ROLLBACK;")
         rethrow()
     end
+    return returnval
 end
