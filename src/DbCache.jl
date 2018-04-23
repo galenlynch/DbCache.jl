@@ -1,11 +1,13 @@
 __precompile__()
 module DbCache
-using ODBC, Compat
+using Compat, DataStreams, NamedTuples, Missings
+import LibPQ
 
 export
     # types
     Conn,
     Stmt,
+    Res,
     DBCache,
     IDType,
     IDDimensionType,
@@ -15,10 +17,7 @@ export
     @iddimension,
 
     # functions
-    execute!,
     stmt_dict,
-    prepare,
-    query,
     transaction,
     id_check,
     load!,
@@ -28,7 +27,9 @@ export
     id_in_cache,
     stmt,
     select_vals,
-    insert_vals
+    insert_vals,
+    num_rows,
+    execute
 
 # package code goes here
 include("dblayer.jl")

@@ -1,11 +1,12 @@
-function id_check(df::DataFrame)
-    local res
-    if size(df, 1) > 0
-        res = get(df[1, 1])
+function id_check(res::Res)
+    if num_rows(res) > 0
+        data = Data.stream!(res, NamedTuple)
+        entry = data[1][1]
+        id_no = ismissing(entry) ? -1 : entry
     else
-        res = -1
+        id_no = -1
     end
-    return convert(Int, res)
+    return convert(Int, id_no)
 end
 
 immutable DBCache
@@ -21,22 +22,31 @@ DBCache(db::Conn) = DBCache(db, Dict{String, Int}(), Dict{String, Stmt}())
 """macro idinstance(typename, [parenttype = IDType], [valuetype = String], [valuetypes...])
 Defines a type, typename, with a single value field whose type is either a single value or a tuple of values
 """
-macro idinstance(
-    typename::Symbol,
-    parenttype::Symbol = IDType,
-    valuetypes::Vararg = :String
-)
+macro idinstance(typename::Symbol, parenttype::Symbol = IDType, valuetypes::Vararg = :String)
     value_is_tuple = length(valuetypes) > 1
     valuetype = value_is_tuple ? :(Tuple{$(valuetypes...)}) : valuetypes[1]
+
+    # Declare type
     typedef = quote
         immutable $typename <: $parenttype
             value::$valuetype
         end
     end
+
+    # Make constructor that takes all arguments and packages them into a tuple
     if value_is_tuple
+        num_arg = length(valuetypes)
+        argnames = Vector{Symbol}(num_arg)
+        argpairs = Vector{Expr}(num_arg)
+        for i in 1:num_arg
+            sym = gensym()
+            argnames[i] = sym
+            argpairs[i] = :($sym::$(valuetypes[i]))
+        end
+
         typedef = quote
             $typedef
-            $typename(args...) = $typename(args)
+            $typename($(argpairs...)) = $typename(($(argnames...),))
         end
     end
     return esc(typedef)
@@ -46,6 +56,7 @@ function tablename end
 function idname end
 function dimname end
 
+"Expands on the idinstance macro to provide tablename, idname, and dimname functions"
 macro iddimension(typename::Symbol, tablename_in::Symbol, idname_in::Symbol, dimname_in::Symbol)
     tblstr = string(tablename_in)
     idstr = string(idname_in)
@@ -59,26 +70,26 @@ macro iddimension(typename::Symbol, tablename_in::Symbol, idname_in::Symbol, dim
     return esc(defs)
 end
 
-insert_vals{T<:IDType}(id::T) = expand_vals(id.value)
-select_vals{T<:IDType}(id::T) = expand_vals(id.value)
-expand_vals(v::Tuple) = v
-expand_vals(v::Array) = v
-expand_vals(v::Any) = (v,)
+expand_vals(v::AbstractArray) = v
+expand_vals(v::Tuple) = [v...]
+expand_vals(v::Any) = [v]
+insert_vals(id::T) where {T<:IDType} = expand_vals(id.value)
+select_vals(id::T) where {T<:IDType} = expand_vals(id.value)
 
-stmt_dict(::Type{T}) where T<: IDType = Dict{Symbol, String}()
+stmt_dict(::Type{T}) where {T<: IDType} = Dict{Symbol, String}()
 
 function stmt_dict(::Type{T}) where T<: IDDimensionType
     thisid = idname(T)
     thistable = tablename(T)
     thisdim = dimname(T)
     stmts = Dict(
-        :select =>  "SELECT $thisid FROM $thistable WHERE $thisdim = ?;",
-        :insert =>  "INSERT INTO $thistable ($thisdim) VALUES (?) RETURNING $thisid;"
+        :select =>  "SELECT $thisid FROM $thistable WHERE $thisdim = \$1",
+        :insert =>  "INSERT INTO $thistable ($thisdim) VALUES (\$1) RETURNING $thisid"
     )
     return stmts
 end
 
-function prepare(db::Conn, ::Type{T}, statement_type::Symbol) where T<:IDType
+function prepare_cached_stmt(db::Conn, ::Type{T}, statement_type::Symbol) where T<:IDType
     stmts = stmt_dict(T)
     if haskey(stmts, statement_type)
         stmt = prepare(db, stmts[statement_type])
@@ -97,7 +108,7 @@ function stmt{T<:IDType}(c::DBCache, ::Type{T}, querytype::Symbol)
     if haskey(c.stmt_cache, key)
         prepared_stmt = c.stmt_cache[key]
     else
-        prepared_stmt = prepare(c.db, T, querytype)
+        prepared_stmt = prepare_cached_stmt(c.db, T, querytype)
         c.stmt_cache[key] = prepared_stmt
     end
     return prepared_stmt
@@ -105,12 +116,12 @@ end
 
 "Load ID type and don't return ID"
 function load_no_id!(c::DBCache, s::T, id_stmt::Stmt = stmt(c, T, :insert)) where T<:IDType
-    execute!(id_stmt, insert_vals(s))
+    result = execute(id_stmt, insert_vals(s))
 end
 
 "Separate function to actually load values, in case any clean up work needs to be done"
 function _load!(c::DBCache, s::T, id_stmt::Stmt = stmt(c, T, :insert)) where T<:IDType
-    id_val = id_check(query(id_stmt, insert_vals(s)))
+    id_val = id_check(execute(id_stmt, insert_vals(s)))
     id_val > 0 || error("Could not load ", T, " with value ", s.value)
     return id_val
 end
@@ -137,7 +148,7 @@ function id!{T<:IDType}(c::DBCache, s::T)
         id_val = c.id_cache[key]
     else
         id_stmt = stmt(c, T, :select)
-        id_val = id_check(query(id_stmt, select_vals(s)))
+        id_val = id_check(execute(id_stmt, select_vals(s)))
         if id_val < 0
             id_val = load!(c, s)
         end
@@ -148,13 +159,13 @@ end
 id!{T<:IDType}(c::DBCache, ins::Array{T}) = [id!(c, s) for s in ins]
 
 "Get ID and cache it, return -1 if it doesn't exist"
-function get_id(c::DBCache, s::T) where T<:IDType
+function get_id(c::DBCache, s::T, querytype::Symbol = :select) where T<:IDType
     key = idkey(s)
     if haskey(c.id_cache, key)
         id_val = c.id_cache[key]
     else
-        id_stmt = stmt(c, T, :select)
-        id_val = id_check(query(id_stmt, select_vals(s)))
+        id_stmt = stmt(c, T, querytype)
+        id_val = id_check(execute(id_stmt, select_vals(s)))
         if id_val >= 0
             c.id_cache[key] = id_val
         end

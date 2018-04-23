@@ -1,17 +1,25 @@
-const Conn = ODBC.DSN
-const Stmt = ODBC.Statement
-execute!(args...) = ODBC.execute!(args...)
-prepare(args...) = ODBC.prepare(args...)
-query(args...) = ODBC.query(args...)
+const Conn = LibPQ.Connection
+const Stmt = LibPQ.Statement
+const Res = LibPQ.Result
+
+execute(s::Stmt, params::Tuple; kwargs...) = execute(s, collect(params); kwargs...)
+execute(args...) = LibPQ.execute(args...)
+
+prepare(args...) = LibPQ.prepare(args...)
+
+num_rows(Res) = LibPQ.num_rows(Res)
 
 function transaction(f::Function, db::Conn)
     returnval = try
-        execute!(db, "BEGIN;")
+        result = execute(db, "BEGIN;")
+        clear!(result)
         returnval = f()
-        execute!(db, "COMMIT;")
+        execute(db, "COMMIT;")
+        clear!(result)
         returnval
     catch
-        execute!(db, "ROLLBACK;")
+        result = execute(db, "ROLLBACK;")
+        clear!(result)
         rethrow()
     end
     return returnval
