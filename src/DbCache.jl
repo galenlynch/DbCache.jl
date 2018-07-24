@@ -23,6 +23,7 @@ export
     load!,
     load_no_id!,
     id!,
+    _id!,
     get_id,
     id_in_cache,
     stmt,

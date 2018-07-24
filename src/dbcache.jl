@@ -142,20 +142,24 @@ function load!(
 end
 
 "Get ID and cache it, load if it doesn't exist"
-function id!{T<:IDType}(c::DBCache, s::T)
+function _id!{T<:IDType}(c::DBCache, s::T)
     key = idkey(s)
     if haskey(c.id_cache, key)
         id_val = c.id_cache[key]
+        db_updated = false
     else
         id_stmt = stmt(c, T, :select)
         id_val = id_check(execute(id_stmt, select_vals(s)))
-        if id_val < 0
+        db_updated = id_val < 0
+        if db_updated
             id_val = load!(c, s)
         end
         c.id_cache[key] = id_val
     end
-    return id_val
+    return id_val, db_updated
 end
+
+id!(c::DBCache, s) = _id!(c, s)[1]
 id!{T<:IDType}(c::DBCache, ins::Array{T}) = [id!(c, s) for s in ins]
 
 "Get ID and cache it, return -1 if it doesn't exist"
