@@ -9,7 +9,7 @@ function id_check(res::Res)
     return convert(Int, id_no)
 end
 
-immutable DBCache
+struct DBCache
     db::Conn
     id_cache::Dict{String, Int}
     stmt_cache::Dict{String, Stmt}
@@ -28,7 +28,7 @@ macro idinstance(typename::Symbol, parenttype::Symbol = IDType, valuetypes::Vara
 
     # Declare type
     typedef = quote
-        immutable $typename <: $parenttype
+        struct $typename <: $parenttype
             value::$valuetype
         end
     end
@@ -36,8 +36,8 @@ macro idinstance(typename::Symbol, parenttype::Symbol = IDType, valuetypes::Vara
     # Make constructor that takes all arguments and packages them into a tuple
     if value_is_tuple
         num_arg = length(valuetypes)
-        argnames = Vector{Symbol}(num_arg)
-        argpairs = Vector{Expr}(num_arg)
+        @compat argnames = Vector{Symbol}(undef, num_arg)
+        @compat argpairs = Vector{Expr}(undef, num_arg)
         for i in 1:num_arg
             sym = gensym()
             argnames[i] = sym
@@ -99,11 +99,11 @@ function prepare_cached_stmt(db::Conn, ::Type{T}, statement_type::Symbol) where 
     return stmt
 end
 
-idkey{T<:IDType}(s::T) = "$T/$(select_vals(s))"
-idkey{T<:IDType}(::Type{T}, querytype::Symbol) = "$T/$querytype"
+idkey(s::T) where {T<:IDType} = "$T/$(select_vals(s))"
+idkey(::Type{T}, querytype::Symbol) where {T<:IDType} = "$T/$querytype"
 
 "Make a prepared query and cache it"
-function stmt{T<:IDType}(c::DBCache, ::Type{T}, querytype::Symbol)
+function stmt(c::DBCache, ::Type{T}, querytype::Symbol) where {T<:IDType}
     key = idkey(T, querytype)
     if haskey(c.stmt_cache, key)
         prepared_stmt = c.stmt_cache[key]
@@ -134,7 +134,7 @@ function load!(
     c::DBCache, S::Array{T, N}, id_stmt::Stmt = stmt(c, T, :insert)
 ) where {T<:IDType, N}
     ns = length(S)
-    outs = Array{Int, N}(size(S))
+    @compat outs = Array{Int, N}(undef, size(S))
     for idx in eachindex(S)
         outs[idx] = load!(c, S[idx], id_stmt)
     end
@@ -142,7 +142,7 @@ function load!(
 end
 
 "Get ID and cache it, load if it doesn't exist"
-function _id!{T<:IDType}(c::DBCache, s::T)
+function _id!(c::DBCache, s::T) where {T<:IDType}
     key = idkey(s)
     if haskey(c.id_cache, key)
         id_val = c.id_cache[key]
@@ -160,7 +160,7 @@ function _id!{T<:IDType}(c::DBCache, s::T)
 end
 
 id!(c::DBCache, s) = _id!(c, s)[1]
-id!{T<:IDType}(c::DBCache, ins::Array{T}) = [id!(c, s) for s in ins]
+id!(c::DBCache, ins::Array{T}) where {T<:IDType} = [id!(c, s) for s in ins]
 
 "Get ID and cache it, return -1 if it doesn't exist"
 function get_id(c::DBCache, s::T, querytype::Symbol = :select) where T<:IDType

@@ -12,15 +12,18 @@ num_rows(Res) = LibPQ.num_rows(Res)
 function transaction(f::Function, db::Conn)
     returnval = try
         result = execute(db, "BEGIN;")
-        clear!(result)
+        close(result)
         returnval = f()
         execute(db, "COMMIT;")
-        clear!(result)
+        close(result)
         returnval
-    catch
+    catch y
+        bt = catch_backtrace()
         result = execute(db, "ROLLBACK;")
-        clear!(result)
-        rethrow()
+        close(result)
+        showerror(stderr, y)
+        Base.show_backtrace(stderr, bt)
+        rethrow(y)
     end
     return returnval
 end

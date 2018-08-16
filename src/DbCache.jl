@@ -1,7 +1,19 @@
 __precompile__()
 module DbCache
-using Compat, DataStreams, NamedTuples, Missings
+
 import LibPQ
+
+using Compat, DataStreams, Missings
+
+@static if VERSION >= v"0.7.0-DEV.2575"
+    using Distributed
+else
+    import Base.close
+    using NamedTuples
+    if !(:close in getfield.(methodswith(LibPQ.Result), :name))
+        close(r::LibPQ.Result) = clear!(r)
+    end
+end
 
 export
     # types
