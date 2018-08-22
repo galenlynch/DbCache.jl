@@ -5,6 +5,17 @@ const Res = LibPQ.Result
 execute(s::Stmt, params::Tuple; kwargs...) = execute(s, collect(params); kwargs...)
 execute(args...) = LibPQ.execute(args...)
 
+function fetch!(
+    s::Stmt,
+    vals::Union{AbstractVector, Tuple},
+    args...;
+    sink::Union{T, Type{T}} = NamedTuple,
+    kwargs...
+) where {T}
+    result = execute(s, vals, args...; kwargs...)
+    LibPQ.fetch!(sink, result)
+end
+
 prepare(args...) = LibPQ.prepare(args...)
 
 num_rows(Res) = LibPQ.num_rows(Res)
