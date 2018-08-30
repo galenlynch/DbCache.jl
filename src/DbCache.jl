@@ -2,6 +2,7 @@ __precompile__()
 module DbCache
 
 import LibPQ
+import LibPQ: fetch!
 
 using Compat, DataStreams, Missings
 
