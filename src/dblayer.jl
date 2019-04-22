@@ -20,21 +20,19 @@ prepare(args...) = LibPQ.prepare(args...)
 
 num_rows(Res) = LibPQ.num_rows(Res)
 
-function transaction(f::Function, db::Conn)
-    returnval = try
-        result = execute(db, "BEGIN;")
-        close(result)
+function transaction(f::Function, db::Conn; top_level = true)
+    if top_level
+        returnval = try
+            close(execute(db, "BEGIN;"))
+            returnval = f()
+            close(execute(db, "COMMIT;"))
+            returnval
+        catch err
+            close(execute(db, "ROLLBACK;"))
+            rethrow(err)
+        end
+    else
         returnval = f()
-        execute(db, "COMMIT;")
-        close(result)
-        returnval
-    catch y
-        bt = catch_backtrace()
-        result = execute(db, "ROLLBACK;")
-        close(result)
-        showerror(stderr, y)
-        Base.show_backtrace(stderr, bt)
-        rethrow(y)
     end
     return returnval
 end
