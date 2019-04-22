@@ -141,7 +141,6 @@ function load!(
     return outs
 end
 
-"Get ID and cache it, load if it doesn't exist"
 function _id!(c::DBCache, s::T) where {T<:IDType}
     key = idkey(s)
     if haskey(c.id_cache, key)
@@ -159,6 +158,7 @@ function _id!(c::DBCache, s::T) where {T<:IDType}
     return id_val, db_updated
 end
 
+"Get ID and cache it, load if it doesn't exist"
 id!(c::DBCache, s) = _id!(c, s)[1]
 id!(c::DBCache, ins::Array{T}) where {T<:IDType} = [id!(c, s) for s in ins]
 
