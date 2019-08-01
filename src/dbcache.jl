@@ -1,6 +1,6 @@
 function id_check(res::Res)
     if num_rows(res) > 0
-        data = Data.stream!(res, NamedTuple)
+        data = columntable(res)
         entry = data[1][1]
         id_no = ismissing(entry) ? -1 : entry
     else

@@ -9,11 +9,10 @@ function fetch!(
     s::Stmt,
     vals::Union{AbstractVector, Tuple},
     args...;
-    sink::Union{T, Type{T}} = NamedTuple,
     kwargs...
-) where {T}
+)
     result = execute(s, vals, args...; kwargs...)
-    LibPQ.fetch!(sink, result)
+    columntable(result)
 end
 
 prepare(args...) = LibPQ.prepare(args...)

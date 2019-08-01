@@ -2,9 +2,8 @@ __precompile__()
 module DbCache
 
 import LibPQ
-import LibPQ: fetch!
 
-using Compat, DataStreams, Missings
+using Compat, Tables, Missings
 
 @static if VERSION >= v"0.7.0-DEV.2575"
     using Distributed
