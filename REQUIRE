@@ -1,5 +1,5 @@
 julia 0.6
 LibPQ 0.3
-Compat 1 2
+Compat 1
 Missings 0.2
 Tables
