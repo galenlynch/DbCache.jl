@@ -16,8 +16,8 @@ struct DBCache
 end
 DBCache(db::Conn) = DBCache(db, Dict{String, Int}(), Dict{String, Stmt}())
 
-@compat abstract type IDType end
-@compat abstract type IDDimensionType <: IDType end
+abstract type IDType end
+abstract type IDDimensionType <: IDType end
 
 """macro idinstance(typename, [parenttype = IDType], [valuetype = String], [valuetypes...])
 Defines a type, typename, with a single value field whose type is either a single value or a tuple of values
@@ -36,8 +36,8 @@ macro idinstance(typename::Symbol, parenttype::Symbol = IDType, valuetypes::Vara
     # Make constructor that takes all arguments and packages them into a tuple
     if value_is_tuple
         num_arg = length(valuetypes)
-        @compat argnames = Vector{Symbol}(undef, num_arg)
-        @compat argpairs = Vector{Expr}(undef, num_arg)
+        argnames = Vector{Symbol}(undef, num_arg)
+        argpairs = Vector{Expr}(undef, num_arg)
         for i in 1:num_arg
             sym = gensym()
             argnames[i] = sym
@@ -134,7 +134,7 @@ function load!(
     c::DBCache, S::Array{T, N}, id_stmt::Stmt = stmt(c, T, :insert)
 ) where {T<:IDType, N}
     ns = length(S)
-    @compat outs = Array{Int, N}(undef, size(S))
+    outs = Array{Int, N}(undef, size(S))
     for idx in eachindex(S)
         outs[idx] = load!(c, S[idx], id_stmt)
     end
